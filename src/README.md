@@ -18,7 +18,7 @@ MeshLab builds with the three major compilers: `gcc`, `clang`, and `msvc`. It re
 
 After setting up the Qt environment:
 
-```
+``` 
 git clone --recursive https://github.com/cnr-isti-vclab/meshlab
 mkdir meshlab/build
 cd meshlab/build
