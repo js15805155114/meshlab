@@ -1,27 +1,3 @@
-/****************************************************************************
-* MeshLab                                                           o o     *
-* An extendible mesh processor                                    o     o   *
-*                                                                _   O  _   *
-* Copyright(C) 2005, 2006                                          \/)\/    *
-* Visual Computing Lab                                            /\/|      *
-* ISTI - Italian National Research Council                           |      *
-*                                                                    \      *
-* All rights reserved.                                                      *
-*                                                                           *
-* This program is free software; you can redistribute it and/or modify      *
-* it under the terms of the GNU General Public License as published by      *
-* the Free Software Foundation; either version 2 of the License, or         *
-* (at your option) any later version.                                       *
-*                                                                           *
-* This program is distributed in the hope that it will be useful,           *
-* but WITHOUT ANY WARRANTY; without even the implied warranty of            *
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             *
-* GNU General Public License (http://www.gnu.org/licenses/gpl.txt)          *
-* for more details.                                                         *
-*                                                                           *
-****************************************************************************/
-
-
 #include <QToolBar>
 #include <QProgressBar>
 #include <QNetworkRequest>
@@ -53,7 +29,7 @@ MainWindow::MainWindow() :
 		gpumeminfo(NULL),
 		defaultGlobalParams(meshlab::defaultGlobalParameterList()),
 		lastUsedDirectory(QDir::home()),
-		PM(meshlab::pluginManagerInstance()),
+        m_pluginManger(meshlab::pluginManagerInstance()),
 		_currviewcontainer(NULL)
 {
 	QSettings settings;
@@ -64,8 +40,10 @@ MainWindow::MainWindow() :
 	//BEFORE they will be loaded. Therefore, these lines need to be executed
 	//before the PM.loadPlugins call.
 	QStringList toDeletePlugins = settings.value("ToDeletePlugins").value<QStringList>();
-	if (!toDeletePlugins.isEmpty()){
-		for (const QString& file : toDeletePlugins){
+    if (!toDeletePlugins.isEmpty())
+    {
+        for (const QString& file : toDeletePlugins)
+        {
 			QFile::remove(file);
 		}
 	}
@@ -80,19 +58,23 @@ MainWindow::MainWindow() :
 	layerDialog->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
 	layerDialog->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Minimum);
 	addDockWidget(Qt::RightDockWidgetArea, layerDialog);
-	try {
-		PM.loadPlugins();
-		PM.loadPlugins(QDir(MeshLabApplication::extraPluginsLocation()));
+    ///加载插件///
+    try
+    {
+        getPluginManager().loadPlugins();
+        getPluginManager().loadPlugins(QDir(MeshLabApplication::extraPluginsLocation()));
 	}
-	catch (const MLException& e) {
-		QMessageBox::warning(this, "Error while loading plugins.", e.what());
+    catch (const MLException& e)
+    {
+        //QMessageBox::warning(this, "Error while loading plugins.", e.what());
 	}
 
 	//disable previously disabled plugins
 	QStringList disabledPlugins = settings.value("DisabledPlugins").value<QStringList>();
-	for (MeshLabPlugin* fp : PM.pluginIterator(true)){
+    for (MeshLabPlugin* fp : getPluginManager().pluginIterator(true))
+    {
 		if (disabledPlugins.contains(fp->pluginName()))
-			PM.disablePlugin(fp);
+            getPluginManager().disablePlugin(fp);
 	}
 
 	//setCentralWidget(workspace);
@@ -155,16 +137,17 @@ MainWindow::~MainWindow()
 	delete gpumeminfo;
 }
 
+//////
 void MainWindow::createActions()
 {
 	searchShortCut = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_F), this);
 	searchShortCut->setAutoRepeat(false);
 	searchShortCut->setContext(Qt::ApplicationShortcut);
 	//////////////Action Menu File ////////////////////////////////////////////////////////////////////////////
-	newProjectAct = new QAction(QIcon(":/images/new_project.png"), tr("New Empty Project..."), this);
-	newProjectAct->setShortcutContext(Qt::ApplicationShortcut);
-	newProjectAct->setShortcut(Qt::CTRL + Qt::Key_N);
-	connect(newProjectAct, SIGNAL(triggered()), this, SLOT(newProject()));
+    m_newProjectAct = new QAction(QIcon(":/images/new_project.png"), tr("New Empty Project..."), this);
+    m_newProjectAct->setShortcutContext(Qt::ApplicationShortcut);
+    m_newProjectAct->setShortcut(Qt::CTRL + Qt::Key_N);
+    connect(m_newProjectAct, SIGNAL(triggered()), this, SLOT(newProject()));
 
 	openProjectAct = new QAction(QIcon(":/images/open_project.png"), tr("&Open project..."), this);
 	openProjectAct->setShortcutContext(Qt::ApplicationShortcut);
@@ -295,11 +278,9 @@ connectRenderModeActionList(rendlist);*/
 
 	resetTrackBallAct = new QAction(tr("Reset &Trackball"), this);
 	resetTrackBallAct->setShortcutContext(Qt::ApplicationShortcut);
-#if defined(Q_OS_MAC)
-	resetTrackBallAct->setShortcut(Qt::CTRL + Qt::SHIFT + Qt::Key_H);
-#else
+
 	resetTrackBallAct->setShortcut(Qt::CTRL + Qt::Key_H);
-#endif
+
 	connect(resetTrackBallAct, SIGNAL(triggered()), this, SLOT(resetTrackBall()));
 
 	showLayerDlgAct = new QAction(QIcon(":/images/layers.png"), tr("Show Layer Dialog"), this);
@@ -483,86 +464,18 @@ connectRenderModeActionList(rendlist);*/
 
 }
 
-void MainWindow::createToolBars()
-{
-#if defined(Q_OS_MAC)
-	this->setStyleSheet("QToolBar {spacing: 0px; } QToolButton {border-radius: 0px;} QToolButton:checked {background: darkgray}");
-#endif
-
-	mainToolBar = addToolBar(tr("Standard"));
-	//	mainToolBar->setIconSize(QSize(32,32));
-	mainToolBar->addAction(this->newProjectAct);
-	mainToolBar->addAction(this->openProjectAct);
-	mainToolBar->addAction(importMeshAct);
-	mainToolBar->addAction(reloadMeshAct);
-	mainToolBar->addAction(reloadAllMeshAct);
-	mainToolBar->addAction(exportMeshAct);
-	mainToolBar->addAction(saveSnapshotAct);
-	mainToolBar->addAction(showLayerDlgAct);
-	mainToolBar->addAction(showRasterAct);
-
-
-	mainToolBar->addSeparator();
-	globrendtoolbar = new MLRenderingGlobalToolbar(this);
-	connect(globrendtoolbar, SIGNAL(updateRenderingDataAccordingToActions(QList<MLRenderingGlobalAction*>)), this, SLOT(updateRenderingDataAccordingToActions(QList<MLRenderingGlobalAction*>)));
-
-	mainToolBar->addWidget(globrendtoolbar);
-
-
-
-	decoratorToolBar = addToolBar("Decorator");
-	for(DecoratePlugin *iDecorate: PM.decoratePluginIterator()) {
-		for(QAction *decorateAction: iDecorate->actions()) {
-			if (!decorateAction->icon().isNull())
-				decoratorToolBar->addAction(decorateAction);
-		}
-	}
-
-	editToolBar = addToolBar(tr("Edit"));
-	editToolBar->addAction(suspendEditModeAct);
-	for(EditPlugin *iEditFactory: PM.editPluginFactoryIterator()) {
-		for(QAction* editAction: iEditFactory->actions()){
-			if (!editAction->icon().isNull()) {
-				editToolBar->addAction(editAction);
-			}
-			else qDebug() << "action was null";
-		}
-	}
-	editToolBar->addSeparator();
-
-	filterToolBar = addToolBar(tr("Filter"));
-	filterToolBar->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
-
-	updateFilterToolBar();
-
-	QWidget *spacerWidget = new QWidget();
-	spacerWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-	spacerWidget->setVisible(true);
-	searchToolBar = addToolBar(tr("Search"));
-	searchToolBar->addWidget(spacerWidget);
-	searchToolBar->setMovable(false);
-	searchToolBar->setFloatable(false);
-	searchToolBar->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-	searchButton = new MyToolButton(0, this);
-	//searchButton->setPopupMode(QToolButton::InstantPopup);
-	searchButton->setIcon(QIcon(":/images/search.png"));
-
-	searchToolBar->addWidget(searchButton);
-}
-
-
 void MainWindow::createMenus()
 {
 	//////////////////// Menu File ////////////////////////////////////////////////////////////////////////////
 	fileMenu = menuBar()->addMenu(tr("&File"));
-	fileMenu->addAction(newProjectAct);
+    fileMenu->addAction(m_newProjectAct);
 	fileMenu->addAction(openProjectAct);
 	fileMenu->addAction(appendProjectAct);
-	fileMenu->addAction(saveProjectAct);
-	fileMenu->addAction(closeProjectAct);
-	fileMenu->addSeparator();
+    fileMenu->addAction(saveProjectAct);
+    fileMenu->addAction(closeProjectAct);
+    fileMenu->addSeparator();
 
-	fileMenu->addAction(importMeshAct);
+    fileMenu->addAction(importMeshAct);
 	fileMenu->addAction(exportMeshAct);
 	fileMenu->addAction(exportMeshAsAct);
 	fileMenu->addAction(reloadMeshAct);
@@ -657,22 +570,97 @@ void MainWindow::createMenus()
 	}
 }
 
+void MainWindow::createToolBars()
+{
+    mainToolBar = addToolBar(tr("Standard"));
+    //	mainToolBar->setIconSize(QSize(32,32));
+    mainToolBar->addAction(this->m_newProjectAct);
+    mainToolBar->addAction(this->openProjectAct);
+    mainToolBar->addAction(importMeshAct);
+    mainToolBar->addAction(reloadMeshAct);
+    mainToolBar->addAction(reloadAllMeshAct);
+    mainToolBar->addAction(exportMeshAct);
+    mainToolBar->addAction(saveSnapshotAct);
+    mainToolBar->addAction(showLayerDlgAct);
+    mainToolBar->addAction(showRasterAct);
+
+
+    mainToolBar->addSeparator();
+    globrendtoolbar = new MLRenderingGlobalToolbar(this);
+    connect(globrendtoolbar, SIGNAL(updateRenderingDataAccordingToActions(QList<MLRenderingGlobalAction*>)), this, SLOT(updateRenderingDataAccordingToActions(QList<MLRenderingGlobalAction*>)));
+
+    mainToolBar->addWidget(globrendtoolbar);
+
+
+
+    decoratorToolBar = addToolBar("Decorator");
+    for(DecoratePlugin *iDecorate: getPluginManager().decoratePluginIterator())
+    {
+        for(QAction *decorateAction: iDecorate->actions())
+        {
+            if (!decorateAction->icon().isNull())
+                decoratorToolBar->addAction(decorateAction);
+        }
+    }
+
+    editToolBar = addToolBar(tr("Edit"));
+    editToolBar->addAction(suspendEditModeAct);
+    for(EditPlugin *iEditFactory: getPluginManager().editPluginFactoryIterator())
+    {
+        for(QAction* editAction: iEditFactory->actions())
+        {
+            if (!editAction->icon().isNull())
+            {
+                editToolBar->addAction(editAction);
+            }
+            else
+            {
+                qDebug() << "action was null";
+            }
+        }
+    }
+    editToolBar->addSeparator();
+
+    filterToolBar = addToolBar(tr("Filter"));
+    filterToolBar->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
+
+    updateFilterToolBar();
+
+    QWidget *spacerWidget = new QWidget();
+    spacerWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    spacerWidget->setVisible(true);
+    searchToolBar = addToolBar(tr("Search"));
+    searchToolBar->addWidget(spacerWidget);
+    searchToolBar->setMovable(false);
+    searchToolBar->setFloatable(false);
+    searchToolBar->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
+    searchButton = new MyToolButton(0, this);
+    //searchButton->setPopupMode(QToolButton::InstantPopup);
+    searchButton->setIcon(QIcon(":/images/search.png"));
+
+    searchToolBar->addWidget(searchButton);
+}
+
 void MainWindow::initSearchEngine()
 {
 	searcher.clear();
-	for (const auto& p : PM.filterPluginIterator()){
+    for (const auto& p : getPluginManager().filterPluginIterator())
+    {
 		for (QAction* act : p->actions())
 			searcher.addAction(act);
 	}
-	for (const auto& p : PM.editPluginFactoryIterator()){
+    for (const auto& p : getPluginManager().editPluginFactoryIterator())
+    {
 		for (QAction* act : p->actions())
 			searcher.addAction(act);
 	}
-	for (const auto& p : PM.renderPluginIterator()){
+    for (const auto& p : getPluginManager().renderPluginIterator())
+    {
 		for (QAction* act : p->actions())
 			searcher.addAction(act);
 	}
-	for (const auto& p : PM.decoratePluginIterator()){
+    for (const auto& p : getPluginManager().decoratePluginIterator())
+    {
 		for (QAction* act : p->actions())
 			searcher.addAction(act);
 	}
@@ -734,13 +722,16 @@ void MainWindow::fillFilterMenu()
 	std::map<QString, FilterPlugin*> mapFilterPlugins;
 	
 	//populate the map
-	for (FilterPlugin* fpi : PM.filterPluginIterator()){
-		for (QAction* act : fpi->actions()){
+    for (FilterPlugin* fpi : getPluginManager().filterPluginIterator())
+    {
+        for (QAction* act : fpi->actions())
+        {
 			mapFilterPlugins[act->text()] = fpi;
 		}
 	}
 
-	for (const auto& p : mapFilterPlugins) {
+    for (const auto& p : mapFilterPlugins)
+    {
 		FilterPlugin* iFilter      = p.second;
 		QAction*      filterAction = iFilter->getFilterAction(p.first);
 		QString       tooltip = "<b>" + iFilter->filterName(filterAction) + "</b><br>" +
@@ -750,69 +741,89 @@ void MainWindow::fillFilterMenu()
 		connect(filterAction, SIGNAL(triggered()), this, SLOT(startFilter()));
 
 		int filterClass = iFilter->getClass(filterAction);
-		if (filterClass & FilterPlugin::FaceColoring) {
+        if (filterClass & FilterPlugin::FaceColoring)
+        {
 			filterMenuColorize->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::VertexColoring) {
+        if (filterClass & FilterPlugin::VertexColoring)
+        {
 			filterMenuColorize->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::MeshColoring) {
+        if (filterClass & FilterPlugin::MeshColoring)
+        {
 			filterMenuColorize->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::Selection) {
+        if (filterClass & FilterPlugin::Selection)
+        {
 			filterMenuSelect->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::Cleaning) {
+        if (filterClass & FilterPlugin::Cleaning)
+        {
 			filterMenuClean->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::Remeshing) {
+        if (filterClass & FilterPlugin::Remeshing)
+        {
 			filterMenuRemeshing->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::Smoothing) {
+        if (filterClass & FilterPlugin::Smoothing)
+        {
 			filterMenuSmoothing->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::Normal) {
+        if (filterClass & FilterPlugin::Normal)
+        {
 			filterMenuNormal->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::Quality) {
+        if (filterClass & FilterPlugin::Quality)
+        {
 			filterMenuQuality->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::Measure) {
+        if (filterClass & FilterPlugin::Measure)
+        {
 			filterMenuQuality->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::Layer) {
+        if (filterClass & FilterPlugin::Layer)
+        {
 			filterMenuMeshLayer->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::RasterLayer) {
+        if (filterClass & FilterPlugin::RasterLayer)
+        {
 			filterMenuRasterLayer->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::MeshCreation) {
+        if (filterClass & FilterPlugin::MeshCreation)
+        {
 			filterMenuCreate->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::RangeMap) {
+        if (filterClass & FilterPlugin::RangeMap)
+        {
 			filterMenuRangeMap->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::PointSet) {
+        if (filterClass & FilterPlugin::PointSet)
+        {
 			filterMenuPointSet->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::Sampling) {
+        if (filterClass & FilterPlugin::Sampling)
+        {
 			filterMenuSampling->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::Texture) {
+        if (filterClass & FilterPlugin::Texture)
+        {
 			filterMenuTexture->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::Polygonal) {
+        if (filterClass & FilterPlugin::Polygonal)
+        {
 			filterMenuPolygonal->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::Camera) {
+        if (filterClass & FilterPlugin::Camera)
+        {
 			filterMenuCamera->addAction(filterAction);
 		}
-		if (filterClass & FilterPlugin::Other) {
+        if (filterClass & FilterPlugin::Other)
+        {
 			filterMenuOther->addAction(filterAction);
 		}
-
 		//  MeshFilterInterface::Generic :
-		if (filterClass == 0) {
+        if (filterClass == 0)
+        {
 			filterMenu->addAction(filterAction);
 		}
 		// if(!filterAction->icon().isNull())
@@ -828,7 +839,7 @@ void MainWindow::fillRenderMenu()
 	renderMenu->addSeparator();
 	fillShadersMenu();
 
-	for(DecoratePlugin *iDecorate: PM.decoratePluginIterator())
+    for(DecoratePlugin *iDecorate: getPluginManager().decoratePluginIterator())
 	{
 		for(QAction *decorateAction: iDecorate->actions())
 		{
@@ -846,7 +857,7 @@ void MainWindow::fillShadersMenu()
 	qaNone->setCheckable(false);
 	shadersMenu->addAction(qaNone);
 	connect(qaNone, SIGNAL(triggered()), this, SLOT(applyRenderMode()));
-	for(RenderPlugin *iRender:  PM.renderPluginIterator()) {
+    for(RenderPlugin *iRender:  getPluginManager().renderPluginIterator()) {
 		addToMenu(iRender->actions(), shadersMenu, SLOT(applyRenderMode()));
 	}
 	shadersMenu->addSeparator();
@@ -860,7 +871,7 @@ void MainWindow::fillEditMenu()
 {
 	clearMenu(editMenu);
 	editMenu->addAction(suspendEditModeAct);
-	for(EditPlugin *iEditFactory: PM.editPluginFactoryIterator())
+    for(EditPlugin *iEditFactory: getPluginManager().editPluginFactoryIterator())
 	{
 		for(QAction* editAction: iEditFactory->actions())
 		{
@@ -872,10 +883,14 @@ void MainWindow::fillEditMenu()
 
 void MainWindow::clearMenu(QMenu* menu)
 {
-	for (QAction *action : menu->actions()) {
-		if (action->menu()) {
+    for (QAction *action : menu->actions())
+    {
+        if (action->menu())
+        {
 			clearMenu(action->menu());
-		} else if (!action->isSeparator() && !(action==suspendEditModeAct)){
+        }
+        if (!action->isSeparator() && !(action==suspendEditModeAct))
+        {
 			disconnect(action, SIGNAL(triggered()), 0, 0);
 		}
 	}
@@ -891,8 +906,10 @@ void MainWindow::updateAllPluginsActions()
 	
 	//update toolbars
 	decoratorToolBar->clear();
-	for(DecoratePlugin *iDecorate: PM.decoratePluginIterator()) {
-		for(QAction *decorateAction: iDecorate->actions()) {
+    for(DecoratePlugin *iDecorate: getPluginManager().decoratePluginIterator())
+    {
+        for(QAction *decorateAction: iDecorate->actions())
+        {
 			if (!decorateAction->icon().isNull())
 				decoratorToolBar->addAction(decorateAction);
 		}
@@ -900,16 +917,18 @@ void MainWindow::updateAllPluginsActions()
 	
 	editToolBar->clear();
 	editToolBar->addAction(suspendEditModeAct);
-	for(EditPlugin *iEditFactory: PM.editPluginFactoryIterator()) {
-		for(QAction* editAction: iEditFactory->actions()){
-			if (!editAction->icon().isNull()) {
+    for(EditPlugin *iEditFactory: getPluginManager().editPluginFactoryIterator())
+    {
+        for(QAction* editAction: iEditFactory->actions())
+        {
+            if (!editAction->icon().isNull())
+            {
 				editToolBar->addAction(editAction);
 			}
 			else qDebug() << "action was null";
 		}
 	}
 	editToolBar->addSeparator();
-	
 	filterToolBar->clear();
 	updateFilterToolBar();
 }
@@ -917,20 +936,26 @@ void MainWindow::updateAllPluginsActions()
 void MainWindow::loadDefaultSettingsFromPlugins()
 {
 	//decorate settings
-	for (DecoratePlugin* dp : PM.decoratePluginIterator()){
-		for(QAction *decoratorAction : dp->actions()) {
+    for (DecoratePlugin* dp : getPluginManager().decoratePluginIterator())
+    {
+        for(QAction *decoratorAction : dp->actions())
+        {
 			dp->initGlobalParameterList(decoratorAction, defaultGlobalParams);
 		}
 	}
-
 	//io settings
-	for (IOPlugin* iop : PM.ioPluginIterator()){
-		for (const FileFormat& ff : iop->importFormats()) {
-			for (const QString& format : ff.extensions) {
+    for (IOPlugin* iop : getPluginManager().ioPluginIterator())
+    {
+        for (const FileFormat& ff : iop->importFormats())
+        {
+            for (const QString& format : ff.extensions)
+            {
 				RichParameterList tmplist = iop->initPreOpenParameter(format);
 				QString prefixName = "MeshLab::IO::" + format.toUpper() + "::";
-				if (!tmplist.isEmpty()){
-					for (RichParameter& rp : tmplist){
+                if (!tmplist.isEmpty())
+                {
+                    for (RichParameter& rp : tmplist)
+                    {
 						rp.setName(prefixName + rp.name());
 					}
 					RichBool rp(prefixName + "showPreOpenParameterDialog", true, "", "");

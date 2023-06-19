@@ -94,6 +94,7 @@ public:
 	inline static QString startupWindowHeightParam() {return "MeshLab::System::startupWindowHeight";}
 };
 
+
 class MainWindow : public QMainWindow
 {
 	Q_OBJECT
@@ -105,69 +106,53 @@ public:
 	//const QString appName() const {return tr("MeshLab v")+appVer(); }
 	//const QString appVer() const {return tr("1.3.2"); }
 	MainWindowSetting mwsettings;
+
+public:
+    bool exportMesh(QString fileName,MeshModel* mod,const bool saveAllPossibleAttributes);
+    void computeRenderingDataOnLoading(MeshModel* mm,bool isareload, MLRenderingData* rendOpt = NULL);
+    void defaultPerViewRenderingData(MLRenderingData& dt) const;
+    void getRenderingData(int mid,MLRenderingData& dt) const;
+    void setRenderingData(int mid,const MLRenderingData& dt);
+    unsigned int viewsRequiringRenderingActions(int meshid,MLRenderingAction* act);
+    void updateSharedContextDataAfterFilterExecution(int postcondmask,int fclasses,bool& newmeshcreated);
+    void readViewFromFile(QString const& filename);
+
 public slots:
 	// callback function to execute a filter
 	void executeFilter(const QAction *action, const RichParameterList& srcpar, bool isPreview = false, bool saveOnHistory = false);
-signals:
-	void dispatchCustomSettings(const RichParameterList& rps);
-	void filterExecuted();
-	void updateLayerTable();
+    bool importMeshWithLayerManagement(QString fileName=QString());
+    bool importRaster(const QString& fileImg = QString());
+    bool openProject(QString fileName=QString(), bool append = false);
+    bool appendProject(QString fileName=QString());
+    void updateCustomSettings();
+    void updateLayerDialog();
+    void applyLastFilter();
+    bool addRenderingDataIfNewlyGeneratedMesh(int meshid);
+    void updateRenderingDataAccordingToActions(int meshid, const QList<MLRenderingAction*>& acts);
+    void updateRenderingDataAccordingToActionsToAllVisibleLayers(const QList<MLRenderingAction*>& acts);
+    void updateRenderingDataAccordingToActions(int meshid, MLRenderingAction* act, QList<MLRenderingAction*>& acts);
+    void updateRenderingDataAccordingToAction(int meshid, MLRenderingAction* act);
+    void updateRenderingDataAccordingToActionToAllVisibleLayers(MLRenderingAction* act);
+    void updateRenderingDataAccordingToAction(int meshid, MLRenderingAction* act,bool);
+    void updateRenderingDataAccordingToActions(QList<MLRenderingGlobalAction*> actlist);
 
 protected:
 	void showEvent(QShowEvent *event);
-
-private slots:
-	void newProject(const QString& projName = QString());
-	void saveProject();
-
-	void meshAdded(int mid);
-	void meshRemoved(int mid);
-
-
-public slots:
-	bool importMeshWithLayerManagement(QString fileName=QString());
-	bool importRaster(const QString& fileImg = QString());
-	bool openProject(QString fileName=QString(), bool append = false);
-	bool appendProject(QString fileName=QString());
-	void updateCustomSettings();
-	void updateLayerDialog();
-	void applyLastFilter();
-	bool addRenderingDataIfNewlyGeneratedMesh(int meshid);
-
-	void updateRenderingDataAccordingToActions(int meshid, const QList<MLRenderingAction*>& acts);
-	void updateRenderingDataAccordingToActionsToAllVisibleLayers(const QList<MLRenderingAction*>& acts);
-	void updateRenderingDataAccordingToActions(int meshid, MLRenderingAction* act, QList<MLRenderingAction*>& acts);
-	void updateRenderingDataAccordingToAction(int meshid, MLRenderingAction* act);
-	void updateRenderingDataAccordingToActionToAllVisibleLayers(MLRenderingAction* act);
-	void updateRenderingDataAccordingToAction(int meshid, MLRenderingAction* act,bool);
-	void updateRenderingDataAccordingToActions(QList<MLRenderingGlobalAction*> actlist);
 
 private:
 	void updateRenderingDataAccordingToActionsCommonCode(int meshid, const QList<MLRenderingAction*>& acts);
 	void updateRenderingDataAccordingToActionCommonCode(int meshid, MLRenderingAction* act);
 
 private slots:
+    void newProject(const QString& projName = QString());
+    void saveProject();
+    void meshAdded(int mid);
+    void meshRemoved(int mid);
 	void documentUpdateRequested();
-	bool importMesh(QString fileName=QString());
+    bool onImportMesh(QString fileName=QString());
 	void endEdit();
 	void updateProgressBar(const int pos,const QString& text);
 	void updateTexture(int meshid);
-public:
-
-	bool exportMesh(QString fileName,MeshModel* mod,const bool saveAllPossibleAttributes);
-
-	void computeRenderingDataOnLoading(MeshModel* mm,bool isareload, MLRenderingData* rendOpt = NULL);
-
-	void defaultPerViewRenderingData(MLRenderingData& dt) const;
-	void getRenderingData(int mid,MLRenderingData& dt) const;
-	void setRenderingData(int mid,const MLRenderingData& dt);
-
-	unsigned int viewsRequiringRenderingActions(int meshid,MLRenderingAction* act);
-
-	void updateSharedContextDataAfterFilterExecution(int postcondmask,int fclasses,bool& newmeshcreated);
-	void readViewFromFile(QString const& filename);
-
-private slots:
 	void closeCurrentDocument();
 	//////////// Slot Menu File //////////////////////
 	void reload();
@@ -186,13 +171,10 @@ private slots:
 	void runFilterScript();
 	void showFilterScript();
 	void showTooltip(QAction*);
-
 	void applyRenderMode();
 	void applyDecorateMode();
-
 	static std::pair<QString, QString> extractVertFragFileNames(const QDomElement& root);
 	void addShaders();
-
 	void switchOffDecorator(QAction* );
 	///////////Slot Menu View ////////////////////////
 	void fullScreen();
@@ -224,7 +206,6 @@ private slots:
 	///////////Slot PopUp Menu Handles /////////////////////
 	void splitFromHandle(QAction * qa);
 	void unsplitFromHandle(QAction * qa);
-
 	///////////Slot Menu Preferences /////////////////
 	void setCustomize();
 	///////////Slot Menu Help ////////////////////////
@@ -235,18 +216,16 @@ private slots:
 	void submitBug();
 	void sendUsAMail();
 	void checkForUpdates(bool verboseFlag=true);
-
 	void dropEvent ( QDropEvent * event );
 	void dragEnterEvent(QDragEnterEvent *);
 	void connectionDone(QNetworkReply *reply);
 	///////////Solt Wrapper for QMdiArea //////////////////
 	void wrapSetActiveSubWindow(QWidget* window);
 	void switchCurrentContainer(QMdiSubWindow *);
-
 	void updateFilterToolBar();
 	void updateGPUMemBar(int,int,int,int);
-
 	void updateLog();
+
 private:
 	void addRenderingSystemLogInfo(unsigned mmid);
 	int longestActionWidthInMenu(QMenu* m,const int longestwidth);
@@ -271,10 +250,9 @@ private:
 	void saveRecentFileList(const QString &fileName);
 	void saveRecentProjectList(const QString &projName);
 	void addToMenu(QList<QAction *>, QMenu *menu, const char *slot);
-
 	void setCurrentMeshBestTab();
 
-
+private:
 	QNetworkAccessManager httpReq;
 	int idHost;
 	int idGet;
@@ -299,15 +277,17 @@ private:
 
 	RichParameterList currentGlobalParams;
 	RichParameterList& defaultGlobalParams;
-
 	QByteArray toolbarState; //toolbar and dockwidgets state
-
 	QDir lastUsedDirectory;  //This will hold the last directory that was used to load/save a file/project in
 
 public:
-	PluginManager& PM;
+    PluginManager& getPluginManager()
+    {
+        return m_pluginManger;
+    }
 
-	MeshDocument *meshDoc() {
+    MeshDocument *meshDoc()
+    {
 		if (currentViewContainer() != NULL)
 			return &currentViewContainer()->meshDoc;
 		return NULL;
@@ -318,33 +298,16 @@ public:
 	RichParameterList& currentGlobalPars() { return currentGlobalParams; }
 	const RichParameterList& defaultGlobalPars() const { return defaultGlobalParams; }
 
-	GLArea *GLA() const {
+    GLArea *GLA() const
+    {
 		//if(mdiarea->currentSubWindow()==0) return 0;
 		MultiViewer_Container *mvc = currentViewContainer();
 		if(!mvc) return 0;
 		return  mvc->currentgla;
 	}
 
-	MultiViewer_Container* currentViewContainer() const {
-		//     /* MultiViewer_Container *mvc = dynamic_cast<MultiViewer_Container *>(mdiarea->currentSubWindow());
-		//      if(mvc) return mvc;*/
-		//      if(mdiarea->currentSubWindow()!=0 )
-		//{
-		//          Splitter* split = reinterpret_cast<Splitter*>(mdiarea->currentSubWindow()->widget());
-		//	if (split->isMultiViewerContainer())
-		//		return reinterpret_cast<MultiViewer_Container*>(split);
-		//      }
-		//      /*QList<QMdiSubWindow *> subwinList=mdiarea->subWindowList();
-		//      foreach(QMdiSubWindow *subwinPtr,subwinList)
-		//      {
-		//          MultiViewer_Container *mvc = dynamic_cast<MultiViewer_Container *>(subwinPtr);
-		//          if(mvc) return mvc;
-		//          if(mvc==0 && subwinPtr!=0){
-		//              mvc = dynamic_cast<MultiViewer_Container *>(subwinPtr->widget());
-		//              if(mvc) return mvc;
-		//          }
-		//      }*/
-
+    MultiViewer_Container* currentViewContainer() const
+    {
 		return _currviewcontainer;
 	}
 
@@ -358,7 +321,14 @@ public:
 	QMenu* meshLayerMenu() { return filterMenuMeshLayer; }
 	QMenu* rasterLayerMenu() { return filterMenuRasterLayer; }
 
+signals:
+    void dispatchCustomSettings(const RichParameterList& rps);
+    void filterExecuted();
+    void updateLayerTable();
+
 private:
+    PluginManager& m_pluginManger;
+    //
 	ActionSearcher& searcher;
 	//////// ToolBars ///////////////
 	QToolBar* mainToolBar;
@@ -372,7 +342,6 @@ private:
 	QMenu* filterMenu;
 	QMenu* recentProjMenu;
 	QMenu* recentFileMenu;
-
 	QMenu* filterMenuSelect;
 	QMenu* filterMenuClean;
 	QMenu* filterMenuCreate;
@@ -390,14 +359,11 @@ private:
 	QMenu* filterMenuTexture;
 	QMenu* filterMenuCamera;
 	QMenu* filterMenuOther;
-
 	QMenu* editMenu;
-
-	//Render Menu and SubMenu ////
+    ///Render Menu and SubMenu////
 	QMenu* shadersMenu;
 	QMenu* renderMenu;
-
-	//View Menu and SubMenu //////
+    ///View Menu and SubMenu //////
 	QMenu* viewMenu;
 	QMenu* toolBarMenu;
 	//////////////////////////////
@@ -415,9 +381,8 @@ private:
 	QShortcut* searchShortCut;
 	MyToolButton* searchButton;
 	SearchMenu* searchMenu;
-
 	//////////// Actions Menu File ///////////////////////
-	QAction* newProjectAct;
+    QAction* m_newProjectAct;
 	QAction* openProjectAct;
 	QAction* appendProjectAct;
 	QAction* saveProjectAct;
@@ -544,13 +509,16 @@ protected:
 
 	bool eventFilter(QObject *obj, QEvent *event)
 	{
-		if (event->type() == QEvent::FileOpen) {
+        if (event->type() == QEvent::FileOpen)
+        {
 			noEvent=false;
 			QFileOpenEvent *fileEvent = static_cast<QFileOpenEvent*>(event);
 			mainWindow->importMeshWithLayerManagement(fileEvent->file());
 			qDebug("event fileopen %s", qUtf8Printable(fileEvent->file()));
 			return true;
-		} else {
+        }
+        else
+        {
 			// standard event processing
 			return QObject::eventFilter(obj, event);
 		}
